@@ -19,11 +19,8 @@ if __name__ == '__main__':
                         help='Full path to the file we will write the model predictions')
     args = parser.parse_args()
 
-    
-
 
 
 
     # Homework Start From Here
-    
     
