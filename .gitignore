@@ -136,5 +136,6 @@ dmypy.json
 
 # mytest
 test.py
+test.ipynb
 data/
 lexica/
