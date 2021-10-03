@@ -30,8 +30,9 @@ if __name__ == '__main__':
 # %%
 df_train, df_test = get_dataframe(r'data\train.jsonl', r'data\val.jsonl')
 df_train, df_test = extract_text(df_train), extract_text(df_test)
-x_train, x_test = get_features(df_train, df_test)
+x_train, x_test = get_features(df_train, df_test, model = "ngrams+lexicon")
 y_train, y_test = get_lable(df_train, df_test)
+
 
 # %% 
 # x_train, x_test = x_test, x_train

@@ -135,7 +135,5 @@ dmypy.json
 .pylintrc
 
 # mytest
-test.py
-test.ipynb
 data/
 lexica/
