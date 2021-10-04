@@ -106,7 +106,7 @@ def get_lexicon_df(connotation_csv = r'lexica\connotation_lexicon_a.0.1.csv'):
 def get_features(df_train: pd.DataFrame, df_test: pd.DataFrame, model = "ngrams"):
 
     # Initialize 'empty' features matrices
-    x_train, x_test = np.empty((df_train.shape[0], 0)), np.empty((df_test.shape[0], 0))
+    x_train, x_test = coo_matrix(np.empty((df_train.shape[0], 0))), coo_matrix(np.empty((df_test.shape[0], 0)))
 
     # Get ngrams features if wanted
     if "ngrams" in model:
