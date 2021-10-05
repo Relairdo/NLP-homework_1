@@ -137,3 +137,5 @@ dmypy.json
 # mytest
 data/
 lexica/
+df_test.pkl
+df_train.pkl
