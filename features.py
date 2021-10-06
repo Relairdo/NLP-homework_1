@@ -29,8 +29,8 @@ def update_text(df_train: pd.DataFrame, df_test: pd.DataFrame) -> pd.DataFrame:
                     else:
                         Con_text += log['text']
 
-            Pro_texts.append(Pro_text)
-            Con_texes.append(Con_text)
+            Pro_texts.append(Pro_text.lower())
+            Con_texes.append(Con_text.lower())
 
         df['Pro_text'] = Pro_texts
         df['Con_text'] = Con_texes
@@ -70,6 +70,7 @@ def update_lexicon(df_train: pd.DataFrame, df_test: pd.DataFrame, lexicon_path):
         print("connotation_lexicon features are already in dataframes")
         return
     
+    # a word with multiple meaning will be count in every meaning
     positive_vectorizer = CountVectorizer(stop_words='english', vocabulary=set(df_CL[df_CL['sentiment'] == 'positive']['word'].values.astype('U')))
     neutral_vectorizer = CountVectorizer(stop_words='english', vocabulary=set(df_CL[df_CL['sentiment'] == 'neutral']['word'].values.astype('U')))
     negative_vectorizer = CountVectorizer(stop_words='english', vocabulary=set(df_CL[df_CL['sentiment'] == 'negative']['word'].values.astype('U')))
@@ -104,10 +105,38 @@ def update_lexicon(df_train: pd.DataFrame, df_test: pd.DataFrame, lexicon_path):
 
 def upadate_linguistic(df_train: pd.DataFrame, df_test: pd.DataFrame):
 
+    '''
+    * Length
+    * Reference to the opponent
+    Politeness words
+    Swear words
+    * Personal pronouns
+    * Modal verbs
+    Misspellings
+    * Links to outside websites
+    Numbers
+    Exclamation points
+    * Questions
+    '''
+
     #length
     for df in [df_train, df_test]:
         df['Pro_Length'] = [len(text) for text in df['Pro_text']]
         df['Con_Length'] = [len(text) for text in df['Con_text']]
+
+    #Reference to opponent
+    for df in [df_train, df_test]:
+        df['Pro_R2O'] = [ text.count('opponent') for text in df['Pro_text'].tolist()]
+        df['Con_R2O'] = [ text.count('opponent')  for text in df['Con_text'].tolist()]
+
+    # Personal pronouns
+    for df in [df_train, df_test]:
+        Personal_pronouns = ["I", "you", "he", "she", "it", "we", "they", "them", "us", "him", "her", "his", "hers", "its", "theirs", "our", "your"]
+        PP_vectorizer = CountVectorizer(vocabulary=Personal_pronouns)
+        Pro_PP_count = PP_vectorizer.transform(df['Pro_text'])
+        Con_PP_count = PP_vectorizer.transform(df['Con_text'])
+        df['Pro_Personal_pronouns'] = [c.nnz for c in Pro_PP_count]
+        df['Con_Personal_pronouns'] = [c.nnz for c in Con_PP_count]
 
     #Modal verbs
     for df in [df_train, df_test]:
@@ -118,59 +147,102 @@ def upadate_linguistic(df_train: pd.DataFrame, df_test: pd.DataFrame):
         df['Pro_Modals'] = [c.nnz for c in Pro_Modals_count]
         df['Con_Modals'] = [c.nnz for c in Con_Modals_count]
 
+    #Links to outside websites
+    for df in [df_train, df_test]:
+        df['Pro_Links'] = [ text.count('http')  for text in df['Pro_text'].tolist()]
+        df['Con_Links'] = [ text.count('http')  for text in df['Con_text'].tolist()]
+
     #Questions
     for df in [df_train, df_test]:
         df['Pro_Questions'] = [ text.count('?')  for text in df['Pro_text'].tolist()]
         df['Con_Questions'] = [ text.count('?')  for text in df['Con_text'].tolist()]
 
-    #Links to outside websites
-    for df in [df_train, df_test]:
-        df['Pro_Links'] = [ text.count('http')  for text in df['Pro_text'].tolist()]
-        df['Con_Links'] = [ text.count('http')  for text in df['Con_text'].tolist()]
- 
 def update_user(df_train: pd.DataFrame, df_test: pd.DataFrame, user_loc):
 
     '''
     big_issues_dict
     birthday
-    education
-    ethnicity
-    gender
+    * education
+    * ethnicity
+    * gender
     friends
-    income
-    joined
+    * income
+    * joined
     opinion_arguments
     opinion_questions
-    party
-    political_ideology
+    * party
+    * political_ideology
     poll_topics
     poll_votes
-    relationship
-    religious_ideology
+    * relationship
+    * religious_ideology
     '''
     with open(user_loc,  encoding='utf-8') as f:
         users = json.load(f)
     
-    #Gender
-    Gender_vectorizer = CountVectorizer(vocabulary=set([p["gender"] for p in users.values()]))
-    for df in [df_train, df_test]:
-        Pro_gender = Gender_vectorizer.transform([users[person]['gender'] for person in df["pro_debater"].tolist()])
-        Con_gender = Gender_vectorizer.transform([users[person]['gender'] for person in df["con_debater"].tolist()])
-        df['Pro_gender'] = [Pro_gender[i] for i in range(Pro_gender.shape[0])]
-        df['Con_gender'] = [Con_gender[i] for i in range(Con_gender.shape[0])]
+    user_feature_list = ['education','ethnicity', 'gender', 'income', 'joined', 'party', 'political_ideology', 'relationship', 'religious_ideology']
 
-    #Religious ideology
-    RL_vectorizer = CountVectorizer(vocabulary=set([p["religious_ideology"] for p in users.values()]))
-    for df in [df_train, df_test]:
-        Pro_RL = RL_vectorizer.transform([users[person]['religious_ideology'] for person in df["pro_debater"].tolist()])
-        Con_RL = RL_vectorizer.transform([users[person]['religious_ideology'] for person in df["con_debater"].tolist()])
-        df['Pro_religious_ideology'] = [Pro_RL[i] for i in range(Pro_RL.shape[0])]
-        df['Con_religious_ideology'] = [Con_RL[i] for i in range(Con_RL.shape[0])]
+    for user_feature in user_feature_list:
+        feature_vectorizer = CountVectorizer(vocabulary=set([p[user_feature] for p in users.values()]))
+        for df in [df_train, df_test]:
+            Pro_feature = feature_vectorizer.transform([users[person][user_feature] for person in df["pro_debater"].tolist()])
+            Con_feature = feature_vectorizer.transform([users[person][user_feature] for person in df["con_debater"].tolist()])
+            df['Pro_'+user_feature] = [Pro_feature[i] for i in range(Pro_feature.shape[0])]
+            df['Con_'+user_feature] = [Con_feature[i] for i in range(Con_feature.shape[0])]
+
+    # #Gender
+    # gender_vectorizer = CountVectorizer(vocabulary=set([p["gender"] for p in users.values()]))
+    # for df in [df_train, df_test]:
+    #     Pro_gender = gender_vectorizer.transform([users[person]['gender'] for person in df["pro_debater"].tolist()])
+    #     Con_gender = gender_vectorizer.transform([users[person]['gender'] for person in df["con_debater"].tolist()])
+    #     df['Pro_gender'] = [Pro_gender[i] for i in range(Pro_gender.shape[0])]
+    #     df['Con_gender'] = [Con_gender[i] for i in range(Con_gender.shape[0])]
+
+    # #Religious ideology
+    # RL_vectorizer = CountVectorizer(vocabulary=set([p["religious_ideology"] for p in users.values()]))
+    # for df in [df_train, df_test]:
+    #     Pro_RL = RL_vectorizer.transform([users[person]['religious_ideology'] for person in df["pro_debater"].tolist()])
+    #     Con_RL = RL_vectorizer.transform([users[person]['religious_ideology'] for person in df["con_debater"].tolist()])
+    #     df['Pro_religious_ideology'] = [Pro_RL[i] for i in range(Pro_RL.shape[0])]
+    #     df['Con_religious_ideology'] = [Con_RL[i] for i in range(Con_RL.shape[0])]
+
+    # #Party
+    # party_vectorizer = CountVectorizer(vocabulary=set([p["party"] for p in users.values()]))
+    # for df in [df_train, df_test]:
+    #     Pro_party = party_vectorizer.transform([users[person]['party'] for person in df["pro_debater"].tolist()])
+    #     Con_party = party_vectorizer.transform([users[person]['party'] for person in df["con_debater"].tolist()])
+    #     df['Pro_party'] = [Pro_party[i] for i in range(Pro_party.shape[0])]
+    #     df['Con_party'] = [Con_party[i] for i in range(Con_party.shape[0])]
+
+    # #ethnicity
+    # ethnicity_vectorizer = CountVectorizer(vocabulary=set([p["ethnicity"] for p in users.values()]))
+    # for df in [df_train, df_test]:
+    #     Pro_ethnicity = ethnicity_vectorizer.transform([users[person]['ethnicity'] for person in df["pro_debater"].tolist()])
+    #     Con_ethnicity = ethnicity_vectorizer.transform([users[person]['ethnicity'] for person in df["con_debater"].tolist()])
+    #     df['Pro_ethnicity'] = [Pro_ethnicity[i] for i in range(Pro_ethnicity.shape[0])]
+    #     df['Con_ethnicity'] = [Con_ethnicity[i] for i in range(Con_ethnicity.shape[0])]
+
+    # #relationship
+    # relationship_vectorizer = CountVectorizer(vocabulary=set([p["relationship"] for p in users.values()]))
+    # for df in [df_train, df_test]:
+    #     Pro_relationship = relationship_vectorizer.transform([users[person]['relationship'] for person in df["pro_debater"].tolist()])
+    #     Con_relationship = relationship_vectorizer.transform([users[person]['relationship'] for person in df["con_debater"].tolist()])
+    #     df['Pro_relationship'] = [Pro_relationship[i] for i in range(Pro_relationship.shape[0])]
+    #     df['Con_relationship'] = [Con_relationship[i] for i in range(Con_relationship.shape[0])]
+
+    # #education
+    # education_vectorizer = CountVectorizer(vocabulary=set([p["education"] for p in users.values()]))
+    # for df in [df_train, df_test]:
+    #     Pro_gender = education_vectorizer.transform([users[person]['education'] for person in df["pro_debater"].tolist()])
+    #     Con_gender = education_vectorizer.transform([users[person]['education'] for person in df["con_debater"].tolist()])
+    #     df['Pro_education'] = [Pro_gender[i] for i in range(Pro_gender.shape[0])]
+    #     df['Con_education'] = [Con_gender[i] for i in range(Con_gender.shape[0])]
 
 
-    pass
+    
+    return
 
-def get_features(df_train: pd.DataFrame, df_test: pd.DataFrame, model = "ngrams", lex_list = ["CL", "NVL"], ling_list = ["Length","Modals","Questions", "Links"], user_list = ["Gender", "RI"]):
+def get_features(df_train: pd.DataFrame, df_test: pd.DataFrame, model = "Ngram+Lex+Ling+User", lex_list = ["CL", "NVL"], ling_list = ['Length', 'R2O', 'Personal_pronouns', 'Modals', 'Links', 'Questions'], user_list = ['education','ethnicity', 'gender', 'income', 'joined', 'party', 'political_ideology', 'relationship', 'religious_ideology']):
     
     # Initialize 'empty' features matrices
     x_train, x_test = coo_matrix(np.empty((df_train.shape[0], 0))), coo_matrix(np.empty((df_test.shape[0], 0)))
@@ -214,72 +286,118 @@ def get_features(df_train: pd.DataFrame, df_test: pd.DataFrame, model = "ngrams"
 
     if "Ling" in model:
         
-        ## Length + Modals          0.7549187037946624
-        ## Length + Questions       0.7463785090867873
-        ## Length + Link            0.7493847684537978
-        ## Modals + Questions       0.7569274946159369
-        ## Modals + Links           0.7549199632246446
-        ## Links + Questions        0.7584287351544691
-        
-
-        Length_features = ['Pro_Length', 'Con_Length']
-        Modals_features = ['Pro_Modals', 'Con_Modals', ]
-
-        #not used features
-        Questions_features = ['Pro_Questions', 'Con_Questions']
-        Links_features = ['Pro_Links', 'Con_Links']
-
         print("Linguistic features:", end=" ")
-        
-        if "Length" in ling_list:
-            x_train = hstack([x_train, df_train[Length_features].values])
-            x_test = hstack([x_test, df_test[Length_features].values])
-            print("Length", end=" ")
 
-        if "Modals" in ling_list:
-            x_train = hstack([x_train, df_train[Modals_features].values])
-            x_test = hstack([x_test, df_test[Modals_features].values])
-            print("Modals", end=" ")
+        ling_feature_list = ['Length', 'R2O', 'Personal_pronouns', 'Modals', 'Links', 'Questions']
 
-        if "Questions" in ling_list:
-            x_train = hstack([x_train, df_train[Questions_features].values])
-            x_test = hstack([x_test, df_test[Questions_features].values])
-            print("Questions", end=" ")
-
-        if "Links" in ling_list:
-            x_train = hstack([x_train, df_train[Links_features].values])
-            x_test = hstack([x_test, df_test[Links_features].values])
-            print("Links", end=" ")
+        for ling_feature in ling_feature_list:
+            if ling_feature in ling_list:
+                x_train = hstack([x_train, df_train[['Pro_'+ling_feature, 'Con_'+ling_feature]].values])
+                x_test = hstack([x_test, df_test[['Pro_'+ling_feature, 'Con_'+ling_feature]].values])
+                print(ling_feature, end=" ")
 
         print("")
+
+        # Length_features = ['Pro_Length', 'Con_Length']
+        # Modals_features = ['Pro_Modals', 'Con_Modals', ]
+        # Questions_features = ['Pro_Questions', 'Con_Questions']
+        # Links_features = ['Pro_Links', 'Con_Links']
+
+        # if "Length" in ling_list:
+        #     x_train = hstack([x_train, df_train[Length_features].values])
+        #     x_test = hstack([x_test, df_test[Length_features].values])
+        #     print("Length", end=" ")
+
+        # if "R2O" in ling_list:
+        #     x_train = hstack([x_train, df_train[Length_features].values])
+        #     x_test = hstack([x_test, df_test[Length_features].values])
+        #     print("Length", end=" ")
+
+        # if "Modals" in ling_list:
+        #     x_train = hstack([x_train, df_train[Modals_features].values])
+        #     x_test = hstack([x_test, df_test[Modals_features].values])
+        #     print("Modals", end=" ")
+
+        # if "Questions" in ling_list:
+        #     x_train = hstack([x_train, df_train[Questions_features].values])
+        #     x_test = hstack([x_test, df_test[Questions_features].values])
+        #     print("Questions", end=" ")
+
+        # if "Links" in ling_list:
+        #     x_train = hstack([x_train, df_train[Links_features].values])
+        #     x_test = hstack([x_test, df_test[Links_features].values])
+        #     print("Links", end=" ")
+
+        
 
         
 
     if "User" in model:
 
         print("User features:", end=" ")
-        #Gender
-        if "Gender" in user_list:
-            # only 0.7568922305764411
-            x_train_Pro_gender = vstack(df_train['Pro_gender'])
-            x_train_Con_gender = vstack(df_train['Con_gender'])
-            x_test_Pro_gender = vstack(df_test['Pro_gender'])
-            x_test_Con_gender = vstack(df_test['Con_gender'])
-            x_train = hstack([x_train, x_train_Pro_gender, x_train_Con_gender])
-            x_test = hstack([x_test, x_test_Pro_gender, x_test_Con_gender])
-            print("Gender", end=" ")
+        user_feature_list = ['education','ethnicity', 'gender', 'income', 'joined', 'party', 'political_ideology', 'relationship', 'religious_ideology']
+
+        for user_feature in user_feature_list:
+
+            if user_feature in user_list:
+                x_train_Pro_feature = vstack(df_train['Pro_'+user_feature])
+                x_train_Con_feature = vstack(df_train['Con_'+user_feature])
+                x_test_Pro_feature = vstack(df_test['Pro_'+user_feature])
+                x_test_Con_feature = vstack(df_test['Con_'+user_feature])
+                x_train = hstack([x_train, x_train_Pro_feature, x_train_Con_feature])
+                x_test = hstack([x_test, x_test_Pro_feature, x_test_Con_feature])
+                print(user_feature, end=" ")
+
+        # #Gender
+        # if "Gender" in user_list:
+        #     x_train_Pro_gender = vstack(df_train['Pro_gender'])
+        #     x_train_Con_gender = vstack(df_train['Con_gender'])
+        #     x_test_Pro_gender = vstack(df_test['Pro_gender'])
+        #     x_test_Con_gender = vstack(df_test['Con_gender'])
+        #     x_train = hstack([x_train, x_train_Pro_gender, x_train_Con_gender])
+        #     x_test = hstack([x_test, x_test_Pro_gender, x_test_Con_gender])
+        #     print("Gender", end=" ")
 
 
-        # religious_ideology
-        if "RI" in user_list:
-            # only 0.7418546365914787
-            x_train_Pro_RL = vstack(df_train['Pro_religious_ideology'])
-            x_train_Con_RL = vstack(df_train['Con_religious_ideology'])
-            x_test_Pro_RL = vstack(df_test['Pro_religious_ideology'])
-            x_test_Con_RL = vstack(df_test['Con_religious_ideology'])
-            x_train = hstack([x_train, x_train_Pro_RL, x_train_Con_RL])
-            x_test = hstack([x_test, x_test_Pro_RL, x_test_Con_RL])
-            print("Religious_Ideology", end=" ")
+        # # religious_ideology
+        # if "RI" in user_list:
+        #     x_train_Pro_RL = vstack(df_train['Pro_religious_ideology'])
+        #     x_train_Con_RL = vstack(df_train['Con_religious_ideology'])
+        #     x_test_Pro_RL = vstack(df_test['Pro_religious_ideology'])
+        #     x_test_Con_RL = vstack(df_test['Con_religious_ideology'])
+        #     x_train = hstack([x_train, x_train_Pro_RL, x_train_Con_RL])
+        #     x_test = hstack([x_test, x_test_Pro_RL, x_test_Con_RL])
+        #     print("Religious_Ideology", end=" ")
+
+        # # party
+        # if "Party" in user_list:
+        #     x_train_Pro_party = vstack(df_train['Pro_party'])
+        #     x_train_Con_party = vstack(df_train['Con_party'])
+        #     x_test_Pro_party = vstack(df_test['Pro_party'])
+        #     x_test_Con_party = vstack(df_test['Con_party'])
+        #     x_train = hstack([x_train, x_train_Pro_party, x_train_Con_party])
+        #     x_test = hstack([x_test, x_test_Pro_party, x_test_Con_party])
+        #     print("Party", end=" ")
+
+        # # ethnicity
+        # if "Ethnicity" in user_list:
+        #     x_train_Pro_ethnicity = vstack(df_train['Pro_ethnicity'])
+        #     x_train_Con_ethnicity = vstack(df_train['Con_ethnicity'])
+        #     x_test_Pro_ethnicity = vstack(df_test['Pro_ethnicity'])
+        #     x_test_Con_ethnicity = vstack(df_test['Con_ethnicity'])
+        #     x_train = hstack([x_train, x_train_Pro_ethnicity, x_train_Con_ethnicity])
+        #     x_test = hstack([x_test, x_test_Pro_ethnicity, x_test_Con_ethnicity])
+        #     print("Ethnicity", end=" ")
+
+        # # relationship
+        # if "relationship" in user_list:
+        #     x_train_Pro_relationship = vstack(df_train['Pro_relationship'])
+        #     x_train_Con_relationship = vstack(df_train['Con_relationship'])
+        #     x_test_Pro_relationship = vstack(df_test['Pro_relationship'])
+        #     x_test_Con_relationship = vstack(df_test['Con_relationship'])
+        #     x_train = hstack([x_train, x_train_Pro_relationship, x_train_Con_relationship])
+        #     x_test = hstack([x_test, x_test_Pro_relationship, x_test_Con_relationship])
+        #     print("Relationship", end=" ")
         
         print("")
 
