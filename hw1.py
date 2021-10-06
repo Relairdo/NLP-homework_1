@@ -1,11 +1,14 @@
 import argparse
 import pandas as pd
-from features import get_dataframe, update_text, update_ngrams, update_lexicon, upadate_linguistic, update_user, get_features, get_lable
-from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import classification_report, accuracy_score, balanced_accuracy_score, plot_confusion_matrix
+import numpy as np
 import time
 import os
 import matplotlib.pyplot as plt
+from scipy.sparse.construct import vstack
+from features import get_dataframe, update_text, update_ngrams, update_lexicon, upadate_linguistic, update_user, get_features, get_lable
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import classification_report, accuracy_score, balanced_accuracy_score, plot_confusion_matrix
+from sklearn.model_selection import cross_val_score
 
 if __name__ == '__main__':
     
@@ -37,14 +40,12 @@ if __name__ == '__main__':
                         help='Full path to the file we will write the model predictions')
     args = parser.parse_args()
 
+    cross_validation = False
 
     # Homework Start From Here
         
     df_train_loc = os.path.join('df_train.pkl')
     df_test_loc = os.path.join('df_test.pkl')
-
-    # Swap
-    # df_test_loc, df_train_loc = df_train_loc, df_test_loc
 
 
     if os.path.isfile(df_train_loc) and os.path.isfile(df_test_loc):
@@ -52,7 +53,7 @@ if __name__ == '__main__':
         df_test = pd.read_pickle(df_test_loc)
 
     else:
-        
+
         start = time.time()
 
         df_train, df_test = get_dataframe(args.train, args.test)
@@ -68,27 +69,42 @@ if __name__ == '__main__':
         df_train.to_pickle(df_train_loc)
         df_test.to_pickle(df_test_loc)
 
+
     x_train, x_test = get_features(df_train, df_test, model = args.model)
     y_train, y_test = get_lable(df_train, df_test)
     print('total features:', x_train.shape[1])
 
-    start = time.time()
-    clf = LogisticRegression(solver='liblinear')
-    clf.fit(x_train, y_train)
-    end = time.time()
-    print("Training Model Cost:", round(end - start),'s.')
-    
-    y_predicted_LR = clf.predict(x_test)
-    print('ngram-LR Classification:')
-    print("Accuracy score: ",accuracy_score(y_test, y_predicted_LR))
-    print("Accuracy score on Train: ",accuracy_score(y_train, clf.predict(x_train)))
-    plot_confusion_matrix(clf, x_test, y_test)
-    # plt.show()
+    if cross_validation:
+        x = vstack([x_train,x_test])
+        y = y_train + y_test
+        print(args.model)
+        clf = LogisticRegression(solver='liblinear')
+        start = time.time()
+        scores = cross_val_score(clf, x, y, cv=5 ,scoring='accuracy')
+        end = time.time()
+        print("Training Model Cost:", round(end - start),'s.')
+        print(scores)
+        print(np.mean(scores))
 
-    with open(args.outfile, "w") as myfile:
-        for p in y_predicted_LR:
-            if p == 1:
-                myfile.write('Pro'+'\n')
-            else:
-                myfile.write('Con'+'\n')
-    
+    else:
+
+        start = time.time()
+        clf = LogisticRegression(solver='liblinear')
+        clf.fit(x_train, y_train)
+        end = time.time()
+        print("Training Model Cost:", round(end - start),'s.')
+        
+        y_predicted = clf.predict(x_test)
+        print('ngram-LR Classification:')
+        print("Accuracy score: ",accuracy_score(y_test, y_predicted))
+        print("Accuracy score on Train: ",accuracy_score(y_train, clf.predict(x_train)))
+        plot_confusion_matrix(clf, x_test, y_test)
+        print(classification_report(y_test, y_predicted, target_names=['Con','Pro']))
+
+        with open(args.outfile, "w") as myfile:
+            for p in y_predicted:
+                if p == 1:
+                    myfile.write('Pro'+'\n')
+                else:
+                    myfile.write('Con'+'\n')
+        

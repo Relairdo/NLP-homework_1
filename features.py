@@ -43,7 +43,7 @@ def update_ngrams(df_train: pd.DataFrame, df_test: pd.DataFrame):
         print("ngrams features are already in dataframes")
         return
 
-    vectorizer = TfidfVectorizer(max_features = 25000, sublinear_tf=False, max_df=0.9, stop_words='english', ngram_range=(1,3))
+    vectorizer = TfidfVectorizer(max_features=1000, max_df=0.9, stop_words='english', ngram_range=(1,3))
     vectorizer.fit(df_train[['Pro_text','Con_text']].values.flatten())
     Train_Pro_tfidf = vectorizer.transform(df_train['Pro_text'].tolist())
     Train_Con_tfidf = vectorizer.transform(df_train['Con_text'].tolist())
@@ -70,9 +70,9 @@ def update_lexicon(df_train: pd.DataFrame, df_test: pd.DataFrame, lexicon_path):
         print("connotation_lexicon features are already in dataframes")
         return
     
-    positive_vectorizer = CountVectorizer(max_df=1, stop_words='english', vocabulary=set(df_CL[df_CL['sentiment'] == 'positive']['word'].values.astype('U')))
-    neutral_vectorizer = CountVectorizer(max_df=1, stop_words='english', vocabulary=set(df_CL[df_CL['sentiment'] == 'neutral']['word'].values.astype('U')))
-    negative_vectorizer = CountVectorizer(max_df=1, stop_words='english', vocabulary=set(df_CL[df_CL['sentiment'] == 'negative']['word'].values.astype('U')))
+    positive_vectorizer = CountVectorizer(stop_words='english', vocabulary=set(df_CL[df_CL['sentiment'] == 'positive']['word'].values.astype('U')))
+    neutral_vectorizer = CountVectorizer(stop_words='english', vocabulary=set(df_CL[df_CL['sentiment'] == 'neutral']['word'].values.astype('U')))
+    negative_vectorizer = CountVectorizer(stop_words='english', vocabulary=set(df_CL[df_CL['sentiment'] == 'negative']['word'].values.astype('U')))
 
     for df in [df_train, df_test]:
         Pro_positive_count = positive_vectorizer.transform(df['Pro_text'])
@@ -91,7 +91,7 @@ def update_lexicon(df_train: pd.DataFrame, df_test: pd.DataFrame, lexicon_path):
         df['Con_negative'] = [c.nnz for c in Con_negative_count]
 
     
-    NVL_vectorizer = CountVectorizer(max_df=1, stop_words='english', vocabulary=df_NVL['word'].to_list())
+    NVL_vectorizer = CountVectorizer( stop_words='english', vocabulary=df_NVL['word'].to_list())
 
     for df in [df_train, df_test]:
         NVL_score = coo_matrix(df_NVL[['a-score', 'd-score', 'v-score']].to_numpy())
@@ -206,38 +206,33 @@ def get_features(df_train: pd.DataFrame, df_test: pd.DataFrame, model = "ngrams"
     if "Ling" in model:
 
         
-        ## Length + Questions 0.7593984962406015
-        ## Length + Link 0.7468671679197995
-        ## Length + Modals 0.7568922305764411
-        ## Modals + Questions 0.7493734335839599
-        ## Modals + Links 0.7543859649122807
-        ## Links + Questions 0.7593984962406015
+        ## Length + Modals          0.7549187037946624
+        ## Length + Questions       0.7463785090867873
+        ## Length + Link            0.7493847684537978
+        ## Modals + Questions       0.7569274946159369
+        ## Modals + Links           0.7549199632246446
+        ## Links + Questions        0.7584287351544691
         
-        # not use "Ling" 0.7518796992481203
-        # use all 0.7543859649122807
 
         Length_features = ['Pro_Length', 'Con_Length']
         Modals_features = ['Pro_Modals', 'Con_Modals', ]
 
         #not used features
-        # Questions_features = ['Pro_Questions', 'Con_Questions']
-        # Links_features = ['Pro_Links', 'Con_Links']
+        Questions_features = ['Pro_Questions', 'Con_Questions']
+        Links_features = ['Pro_Links', 'Con_Links']
         
-        # 0.7443609022556391, without 0.7518796992481203
-        x_train = hstack([x_train, df_train[Length_features].values])
-        x_test = hstack([x_test, df_test[Length_features].values])
 
-        # 0.7493734335839599, without 0.7268170426065163
-        x_train = hstack([x_train, df_train[Modals_features].values])
-        x_test = hstack([x_test, df_test[Modals_features].values])
+        # x_train = hstack([x_train, df_train[Length_features].values])
+        # x_test = hstack([x_test, df_test[Length_features].values])
 
-        # 0.7418546365914787, without 0.7468671679197995
-        # x_train = hstack([x_train, df_train[Questions_features].values])
-        # x_test = hstack([x_test, df_test[Questions_features].values])
+        # x_train = hstack([x_train, df_train[Modals_features].values])
+        # x_test = hstack([x_test, df_test[Modals_features].values])
 
-        # 0.7543859649122807, without 0.7368421052631579
-        # x_train = hstack([x_train, df_train[Links_features].values])
-        # x_test = hstack([x_test, df_test[Links_features].values])
+        x_train = hstack([x_train, df_train[Questions_features].values])
+        x_test = hstack([x_test, df_test[Questions_features].values])
+
+        x_train = hstack([x_train, df_train[Links_features].values])
+        x_test = hstack([x_test, df_test[Links_features].values])
 
         
 
