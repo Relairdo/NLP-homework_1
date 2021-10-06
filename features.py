@@ -37,13 +37,13 @@ def update_text(df_train: pd.DataFrame, df_test: pd.DataFrame) -> pd.DataFrame:
 
     return
 
-def update_ngrams(df_train: pd.DataFrame, df_test: pd.DataFrame):
+def update_ngrams(df_train: pd.DataFrame, df_test: pd.DataFrame, feature_number=1000):
     
     if 'Pro_ngram' in df_train.columns:
         print("ngrams features are already in dataframes")
         return
 
-    vectorizer = TfidfVectorizer(max_features=1000, max_df=0.9, stop_words='english', ngram_range=(1,3))
+    vectorizer = TfidfVectorizer(max_features=feature_number, max_df=0.9, stop_words='english', ngram_range=(1,3))
     vectorizer.fit(df_train[['Pro_text','Con_text']].values.flatten())
     Train_Pro_tfidf = vectorizer.transform(df_train['Pro_text'].tolist())
     Train_Con_tfidf = vectorizer.transform(df_train['Con_text'].tolist())
@@ -170,7 +170,7 @@ def update_user(df_train: pd.DataFrame, df_test: pd.DataFrame, user_loc):
 
     pass
 
-def get_features(df_train: pd.DataFrame, df_test: pd.DataFrame, model = "ngrams"):
+def get_features(df_train: pd.DataFrame, df_test: pd.DataFrame, model = "ngrams", lex_list = ["CL", "NVL"], ling_list = ["Length","Modals","Questions", "Links"], user_list = ["Gender", "RI"]):
     
     # Initialize 'empty' features matrices
     x_train, x_test = coo_matrix(np.empty((df_train.shape[0], 0))), coo_matrix(np.empty((df_test.shape[0], 0)))
@@ -188,23 +188,31 @@ def get_features(df_train: pd.DataFrame, df_test: pd.DataFrame, model = "ngrams"
         x_test = hstack([x_test, x_test_Con_ngrams])
 
 
-
     if "Lex" in model:
         #without 0.7468671679197995
+
+        print("Lexicon used:", end=" ")
         # Connotation Lexicon
-        CL_features = ['Pro_negative', 'Con_positive', 'Pro_neutral', 'Con_neutral', 'Pro_negative', 'Con_negative']
-        # only 0.7192982456140351
-        x_train = hstack([x_train, df_train[CL_features].values])
-        x_test = hstack([x_test, df_test[CL_features].values])
+        if "CL" in lex_list:
+            CL_features = ['Pro_negative', 'Con_positive', 'Pro_neutral', 'Con_neutral', 'Pro_negative', 'Con_negative']
+            # only 0.7192982456140351
+            x_train = hstack([x_train, df_train[CL_features].values])
+            x_test = hstack([x_test, df_test[CL_features].values])
+            print("Connotation", end=" ")
+
         # NRC-VAD Lexicon
-        NVL_features = ['Pro_a-score', 'Pro_d-score', 'Pro_v-score','Con_a-score', 'Con_d-score', 'Con_v-score']
-        # only 0.7393483709273183
-        x_train = hstack([x_train, df_train[NVL_features].values])
-        x_test = hstack([x_test, df_test[NVL_features].values])
+        if "NVL" in lex_list:
+            NVL_features = ['Pro_a-score', 'Pro_d-score', 'Pro_v-score','Con_a-score', 'Con_d-score', 'Con_v-score']
+            # only 0.7393483709273183
+            x_train = hstack([x_train, df_train[NVL_features].values])
+            x_test = hstack([x_test, df_test[NVL_features].values])
+            print("NRC-VAD", end=" ")
+        
+        print("")
+
 
 
     if "Ling" in model:
-
         
         ## Length + Modals          0.7549187037946624
         ## Length + Questions       0.7463785090867873
@@ -220,41 +228,61 @@ def get_features(df_train: pd.DataFrame, df_test: pd.DataFrame, model = "ngrams"
         #not used features
         Questions_features = ['Pro_Questions', 'Con_Questions']
         Links_features = ['Pro_Links', 'Con_Links']
+
+        print("Linguistic features:", end=" ")
         
+        if "Length" in ling_list:
+            x_train = hstack([x_train, df_train[Length_features].values])
+            x_test = hstack([x_test, df_test[Length_features].values])
+            print("Length", end=" ")
 
-        # x_train = hstack([x_train, df_train[Length_features].values])
-        # x_test = hstack([x_test, df_test[Length_features].values])
+        if "Modals" in ling_list:
+            x_train = hstack([x_train, df_train[Modals_features].values])
+            x_test = hstack([x_test, df_test[Modals_features].values])
+            print("Modals", end=" ")
 
-        # x_train = hstack([x_train, df_train[Modals_features].values])
-        # x_test = hstack([x_test, df_test[Modals_features].values])
+        if "Questions" in ling_list:
+            x_train = hstack([x_train, df_train[Questions_features].values])
+            x_test = hstack([x_test, df_test[Questions_features].values])
+            print("Questions", end=" ")
 
-        x_train = hstack([x_train, df_train[Questions_features].values])
-        x_test = hstack([x_test, df_test[Questions_features].values])
+        if "Links" in ling_list:
+            x_train = hstack([x_train, df_train[Links_features].values])
+            x_test = hstack([x_test, df_test[Links_features].values])
+            print("Links", end=" ")
 
-        x_train = hstack([x_train, df_train[Links_features].values])
-        x_test = hstack([x_test, df_test[Links_features].values])
+        print("")
 
         
 
     if "User" in model:
 
+        print("User features:", end=" ")
         #Gender
-        # only 0.7568922305764411
-        x_train_Pro_gender = vstack(df_train['Pro_gender'])
-        x_train_Con_gender = vstack(df_train['Con_gender'])
-        x_test_Pro_gender = vstack(df_test['Pro_gender'])
-        x_test_Con_gender = vstack(df_test['Con_gender'])
-        x_train = hstack([x_train, x_train_Pro_gender, x_train_Con_gender])
-        x_test = hstack([x_test, x_test_Pro_gender, x_test_Con_gender])
+        if "Gender" in user_list:
+            # only 0.7568922305764411
+            x_train_Pro_gender = vstack(df_train['Pro_gender'])
+            x_train_Con_gender = vstack(df_train['Con_gender'])
+            x_test_Pro_gender = vstack(df_test['Pro_gender'])
+            x_test_Con_gender = vstack(df_test['Con_gender'])
+            x_train = hstack([x_train, x_train_Pro_gender, x_train_Con_gender])
+            x_test = hstack([x_test, x_test_Pro_gender, x_test_Con_gender])
+            print("Gender", end=" ")
+
 
         # religious_ideology
-        # only 0.7418546365914787
-        x_train_Pro_RL = vstack(df_train['Pro_religious_ideology'])
-        x_train_Con_RL = vstack(df_train['Con_religious_ideology'])
-        x_test_Pro_RL = vstack(df_test['Pro_religious_ideology'])
-        x_test_Con_RL = vstack(df_test['Con_religious_ideology'])
-        x_train = hstack([x_train, x_train_Pro_RL, x_train_Con_RL])
-        x_test = hstack([x_test, x_test_Pro_RL, x_test_Con_RL])
+        if "RI" in user_list:
+            # only 0.7418546365914787
+            x_train_Pro_RL = vstack(df_train['Pro_religious_ideology'])
+            x_train_Con_RL = vstack(df_train['Con_religious_ideology'])
+            x_test_Pro_RL = vstack(df_test['Pro_religious_ideology'])
+            x_test_Con_RL = vstack(df_test['Con_religious_ideology'])
+            x_train = hstack([x_train, x_train_Pro_RL, x_train_Con_RL])
+            x_test = hstack([x_test, x_test_Pro_RL, x_test_Con_RL])
+            print("Religious_Ideology", end=" ")
+        
+        print("")
+
         
 
     return x_train, x_test
