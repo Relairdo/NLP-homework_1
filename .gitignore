@@ -135,6 +135,7 @@ dmypy.json
 .pylintrc
 
 # mytest
+log/
 data/
 lexica/
 df_test.pkl
