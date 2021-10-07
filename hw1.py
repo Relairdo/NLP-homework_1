@@ -46,11 +46,13 @@ if __name__ == '__main__':
         
     df_train_loc = os.path.join('df_train.pkl')
     df_test_loc = os.path.join('df_test.pkl')
+    df_user_loc = os.path.join('df_user.pkl')
 
 
-    if os.path.isfile(df_train_loc) and os.path.isfile(df_test_loc):
+    if os.path.isfile(df_train_loc) and os.path.isfile(df_test_loc) and os.path.isfile(df_user_loc):
         df_train = pd.read_pickle(df_train_loc)
         df_test = pd.read_pickle(df_test_loc)
+        df_user = pd.read_pickle(df_user_loc)
 
     else:
 
@@ -58,19 +60,20 @@ if __name__ == '__main__':
 
         df_train, df_test = get_dataframe(args.train, args.test)
         update_text(df_train, df_test)
-        update_ngrams(df_train, df_test)
+        update_ngrams(df_train, df_test, feature_number=1000)
         update_lexicon(df_train, df_test, args.lexicon_path)
         upadate_linguistic(df_train, df_test)
-        update_user(df_train, df_test, args.user_data)
+        df_train, df_test, df_user = update_user(df_train, df_test, args.user_data)
 
         end = time.time()
         print("Data Preprocessiong Cost:", round(end - start),'s.')
 
         df_train.to_pickle(df_train_loc)
         df_test.to_pickle(df_test_loc)
+        df_user.to_pickle(df_user_loc)
 
 
-    x_train, x_test = get_features(df_train, df_test, model = args.model)
+    x_train, x_test = get_features(df_train, df_test, df_user, model = args.model)
     y_train, y_test = get_lable(df_train, df_test)
     print('total features:', x_train.shape[1])
 

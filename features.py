@@ -1,4 +1,5 @@
 import pandas as pd
+from pandas.api.types import CategoricalDtype 
 import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer
 from sklearn.preprocessing import normalize
@@ -181,28 +182,37 @@ def update_user(df_train: pd.DataFrame, df_test: pd.DataFrame, user_loc):
     with open(user_loc,  encoding='utf-8') as f:
         users = json.load(f)
     
-    # users_list = []
-    # for name, dic in users.items():
-    #         dic["name"] = name
-    #         users_list.append(dic)
-    # df_user = pd.DataFrame(users_list)
+    user_list = []
+    for name, dic in users.items():
+        dic["name"] = name
+        user_list.append(dic)
+    df_user = pd.DataFrame(user_list).drop(['big_issues_dict','birthday','opinion_arguments','opinion_questions','poll_topics','poll_votes','friends'], axis=1)
 
-    user_feature_list = ['education','ethnicity', 'gender', 'income', 'joined', 'party', 'political_ideology', 'relationship', 'religious_ideology']
-
-    for user_feature in user_feature_list:
-        feature_vectorizer = CountVectorizer(token_pattern="")
-        feature_vectorizer.fit([user[user_feature] for _, user in users.items()])
-        for df in [df_train, df_test]:
-            Pro_feature = feature_vectorizer.transform([users[person][user_feature] for person in df["pro_debater"].tolist()])
-            Con_feature = feature_vectorizer.transform([users[person][user_feature] for person in df["con_debater"].tolist()])
-            df['Pro_'+user_feature] = [Pro_feature[i] for i in range(Pro_feature.shape[0])]
-            df['Con_'+user_feature] = [Con_feature[i] for i in range(Con_feature.shape[0])]
+    df_user.columns = df_user.columns.map(lambda x: 'Pro_' + str(x))
+    df_train = pd.merge(df_train, df_user, how="left", left_on="pro_debater", right_on="Pro_name")
+    df_test = pd.merge(df_test, df_user, how="left", left_on="pro_debater", right_on="Pro_name")
+    df_user.columns = df_user.columns.map(lambda x: 'Con_' + str(x)[4:])
+    df_train = pd.merge(df_train, df_user, how="left", left_on="con_debater", right_on="Con_name").drop(["Pro_name", "Con_name"], axis=1)
+    df_test = pd.merge(df_test, df_user, how="left", left_on="con_debater", right_on="Con_name").drop(["Pro_name", "Con_name"], axis=1)
+    df_user.columns = df_user.columns.map(lambda x: str(x)[4:])
 
 
-    
-    return
+    # user_feature_list = ['education','ethnicity', 'gender', 'income', 'joined', 'party', 'political_ideology', 'relationship', 'religious_ideology']
 
-def get_features(df_train: pd.DataFrame, df_test: pd.DataFrame, norm=None, model = "Ngram+Lex+Ling+User", lex_list = ["CL", "NVL"], ling_list = ['Length', 'R2O', 'Personal_pronouns', 'Modals', 'Links', 'Questions'], user_list = ['education','ethnicity', 'gender', 'income', 'joined', 'party', 'political_ideology', 'relationship', 'religious_ideology']):
+    # for user_feature in user_feature_list:
+    #     feature_vectorizer = CountVectorizer(token_pattern="")
+    #     feature_vectorizer.fit([user[user_feature] for _, user in users.items()])
+    #     for df in [df_train, df_test]:
+    #         Pro_feature = feature_vectorizer.transform([users[person][user_feature] for person in df["pro_debater"].tolist()])
+    #         Con_feature = feature_vectorizer.transform([users[person][user_feature] for person in df["con_debater"].tolist()])
+    #         df['Pro_'+user_feature] = [Pro_feature[i] for i in range(Pro_feature.shape[0])]
+    #         df['Con_'+user_feature] = [Con_feature[i] for i in range(Con_feature.shape[0])]
+
+
+
+    return df_train, df_test, df_user.drop(["name"], axis=1)
+
+def get_features(df_train: pd.DataFrame, df_test: pd.DataFrame, df_user: pd.DataFrame, norm=None, model = "Ngram+Lex+Ling+User", lex_list = ["CL", "NVL"], ling_list = ['Length', 'R2O', 'Personal_pronouns', 'Modals', 'Links', 'Questions'], user_list = ['education', 'ethnicity','gender','income','joined','party','political_ideology','relationship','religious_ideology']):
     
     # Initialize 'empty' features matrices
     x_train, x_test = coo_matrix(np.empty((df_train.shape[0], 0))), coo_matrix(np.empty((df_test.shape[0], 0)))
@@ -264,23 +274,38 @@ def get_features(df_train: pd.DataFrame, df_test: pd.DataFrame, norm=None, model
 
 
     if "User" in model:
-
+        
         print("User features:", end=" ")
-        user_feature_list = ['education','ethnicity', 'gender', 'income', 'joined', 'party', 'political_ideology', 'relationship', 'religious_ideology']
-
+        user_feature_list = df_user.columns.tolist()
         for user_feature in user_feature_list:
-
             if user_feature in user_list:
-                x_train_Pro_feature = vstack(df_train['Pro_'+user_feature])
-                x_train_Con_feature = vstack(df_train['Con_'+user_feature])
-                x_test_Pro_feature = vstack(df_test['Pro_'+user_feature])
-                x_test_Con_feature = vstack(df_test['Con_'+user_feature])
-                x_train = hstack([x_train, x_train_Pro_feature, x_train_Con_feature])
-                x_test = hstack([x_test, x_test_Pro_feature, x_test_Con_feature])
+                all_cate = df_user[user_feature].unique().tolist()
+                x_train = hstack([x_train, pd.get_dummies(df_train['Pro_'+user_feature].astype(CategoricalDtype(all_cate))).values])
+                x_train = hstack([x_train, pd.get_dummies(df_train['Con_'+user_feature].astype(CategoricalDtype(all_cate))).values])
+                x_test = hstack([x_test, pd.get_dummies(df_test['Pro_'+user_feature].astype(CategoricalDtype(all_cate))).values])
+                x_test = hstack([x_test, pd.get_dummies(df_test['Con_'+user_feature].astype(CategoricalDtype(all_cate))).values])
                 print(user_feature, end=" ")
 
-        
         print("")
+                
+
+
+        # print("User features:", end=" ")
+        # user_feature_list = ['education','ethnicity', 'gender', 'income', 'joined', 'party', 'political_ideology', 'relationship', 'religious_ideology']
+        #                       ['education', 'ethnicity','gender','income','joined','party','political_ideology','relationship','religious_ideology']
+        # for user_feature in user_feature_list:
+
+        #     if user_feature in user_list:
+        #         x_train_Pro_feature = vstack(df_train['Pro_'+user_feature])
+        #         x_train_Con_feature = vstack(df_train['Con_'+user_feature])
+        #         x_test_Pro_feature = vstack(df_test['Pro_'+user_feature])
+        #         x_test_Con_feature = vstack(df_test['Con_'+user_feature])
+        #         x_train = hstack([x_train, x_train_Pro_feature, x_train_Con_feature])
+        #         x_test = hstack([x_test, x_test_Pro_feature, x_test_Con_feature])
+        #         print(user_feature, end=" ")
+
+        
+        # print("")
 
     if norm != None:
         x_train = normalize(x_train, norm=norm, axis=0)
