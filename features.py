@@ -181,10 +181,17 @@ def update_user(df_train: pd.DataFrame, df_test: pd.DataFrame, user_loc):
     with open(user_loc,  encoding='utf-8') as f:
         users = json.load(f)
     
+    # users_list = []
+    # for name, dic in users.items():
+    #         dic["name"] = name
+    #         users_list.append(dic)
+    # df_user = pd.DataFrame(users_list)
+
     user_feature_list = ['education','ethnicity', 'gender', 'income', 'joined', 'party', 'political_ideology', 'relationship', 'religious_ideology']
 
     for user_feature in user_feature_list:
-        feature_vectorizer = CountVectorizer(vocabulary=set([p[user_feature] for p in users.values()]))
+        feature_vectorizer = CountVectorizer(token_pattern="")
+        feature_vectorizer.fit([user[user_feature] for _, user in users.items()])
         for df in [df_train, df_test]:
             Pro_feature = feature_vectorizer.transform([users[person][user_feature] for person in df["pro_debater"].tolist()])
             Con_feature = feature_vectorizer.transform([users[person][user_feature] for person in df["con_debater"].tolist()])
@@ -195,7 +202,7 @@ def update_user(df_train: pd.DataFrame, df_test: pd.DataFrame, user_loc):
     
     return
 
-def get_features(df_train: pd.DataFrame, df_test: pd.DataFrame, model = "Ngram+Lex+Ling+User", lex_list = ["CL", "NVL"], ling_list = ['Length', 'R2O', 'Personal_pronouns', 'Modals', 'Links', 'Questions'], user_list = ['education','ethnicity', 'gender', 'income', 'joined', 'party', 'political_ideology', 'relationship', 'religious_ideology']):
+def get_features(df_train: pd.DataFrame, df_test: pd.DataFrame, norm=None, model = "Ngram+Lex+Ling+User", lex_list = ["CL", "NVL"], ling_list = ['Length', 'R2O', 'Personal_pronouns', 'Modals', 'Links', 'Questions'], user_list = ['education','ethnicity', 'gender', 'income', 'joined', 'party', 'political_ideology', 'relationship', 'religious_ideology']):
     
     # Initialize 'empty' features matrices
     x_train, x_test = coo_matrix(np.empty((df_train.shape[0], 0))), coo_matrix(np.empty((df_test.shape[0], 0)))
@@ -274,6 +281,10 @@ def get_features(df_train: pd.DataFrame, df_test: pd.DataFrame, model = "Ngram+L
 
         
         print("")
+
+    if norm != None:
+        x_train = normalize(x_train, norm=norm, axis=0)
+        x_test = normalize(x_test, norm=norm, axis=0)
 
         
     return x_train, x_test

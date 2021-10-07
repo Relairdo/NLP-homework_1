@@ -141,3 +141,4 @@ lexica/
 df_test.pkl
 df_train.pkl
 out.txt
+.csv
