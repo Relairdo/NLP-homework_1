@@ -197,19 +197,6 @@ def update_user(df_train: pd.DataFrame, df_test: pd.DataFrame, user_loc):
     df_user.columns = df_user.columns.map(lambda x: str(x)[4:])
 
 
-    # user_feature_list = ['education','ethnicity', 'gender', 'income', 'joined', 'party', 'political_ideology', 'relationship', 'religious_ideology']
-
-    # for user_feature in user_feature_list:
-    #     feature_vectorizer = CountVectorizer(token_pattern="")
-    #     feature_vectorizer.fit([user[user_feature] for _, user in users.items()])
-    #     for df in [df_train, df_test]:
-    #         Pro_feature = feature_vectorizer.transform([users[person][user_feature] for person in df["pro_debater"].tolist()])
-    #         Con_feature = feature_vectorizer.transform([users[person][user_feature] for person in df["con_debater"].tolist()])
-    #         df['Pro_'+user_feature] = [Pro_feature[i] for i in range(Pro_feature.shape[0])]
-    #         df['Con_'+user_feature] = [Con_feature[i] for i in range(Con_feature.shape[0])]
-
-
-
     return df_train, df_test, df_user.drop(["name"], axis=1)
 
 def get_features(df_train: pd.DataFrame, df_test: pd.DataFrame, df_user: pd.DataFrame, norm=None, model = "Ngram+Lex+Ling+User", lex_list = ["CL", "NVL"], ling_list = ['Length', 'R2O', 'Personal_pronouns', 'Modals', 'Links', 'Questions'], user_list = ['education', 'ethnicity','gender','income','joined','party','political_ideology','relationship','religious_ideology']):
@@ -236,7 +223,6 @@ def get_features(df_train: pd.DataFrame, df_test: pd.DataFrame, df_user: pd.Data
 
 
     if "Lex" in model:
-        #without 0.7468671679197995
 
         print("Lexicon used:", end=" ")
         # Connotation Lexicon
@@ -254,7 +240,6 @@ def get_features(df_train: pd.DataFrame, df_test: pd.DataFrame, df_user: pd.Data
             print("NRC-VAD", end=" ")
         
         print("")
-
 
 
     if "Ling" in model:
@@ -287,26 +272,8 @@ def get_features(df_train: pd.DataFrame, df_test: pd.DataFrame, df_user: pd.Data
                 print(user_feature, end=" ")
 
         print("")
-                
 
-
-        # print("User features:", end=" ")
-        # user_feature_list = ['education','ethnicity', 'gender', 'income', 'joined', 'party', 'political_ideology', 'relationship', 'religious_ideology']
-        #                       ['education', 'ethnicity','gender','income','joined','party','political_ideology','relationship','religious_ideology']
-        # for user_feature in user_feature_list:
-
-        #     if user_feature in user_list:
-        #         x_train_Pro_feature = vstack(df_train['Pro_'+user_feature])
-        #         x_train_Con_feature = vstack(df_train['Con_'+user_feature])
-        #         x_test_Pro_feature = vstack(df_test['Pro_'+user_feature])
-        #         x_test_Con_feature = vstack(df_test['Con_'+user_feature])
-        #         x_train = hstack([x_train, x_train_Pro_feature, x_train_Con_feature])
-        #         x_test = hstack([x_test, x_test_Pro_feature, x_test_Con_feature])
-        #         print(user_feature, end=" ")
-
-        
-        # print("")
-
+    
     if norm != None:
         x_train = normalize(x_train, norm=norm, axis=0)
         x_test = normalize(x_test, norm=norm, axis=0)

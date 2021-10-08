@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 from scipy.sparse.construct import vstack
 from features import get_dataframe, update_text, update_ngrams, update_lexicon, upadate_linguistic, update_user, get_features, get_lable
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import classification_report, accuracy_score, balanced_accuracy_score, plot_confusion_matrix
+from sklearn.metrics import classification_report, accuracy_score, plot_confusion_matrix
 from sklearn.model_selection import cross_val_score
 
 if __name__ == '__main__':
@@ -44,12 +44,18 @@ if __name__ == '__main__':
 
     # Homework Start From Here
         
-    df_train_loc = os.path.join('df_train.pkl')
-    df_test_loc = os.path.join('df_test.pkl')
-    df_user_loc = os.path.join('df_user.pkl')
+    folderpath = os.path.join('pickle')
+    if os.path.isdir(folderpath):
+        pass
+    else:
+        os.mkdir(folderpath)
+
+    df_train_loc = os.path.join(folderpath, 'df_train.pkl')
+    df_test_loc = os.path.join(folderpath, 'df_test.pkl')
+    df_user_loc = os.path.join(folderpath, 'df_user.pkl')
 
 
-    if os.path.isfile(df_train_loc) and os.path.isfile(df_test_loc) and os.path.isfile(df_user_loc):
+    if os.path.isfile(df_train_loc) and os.path.isfile(df_test_loc):
         df_train = pd.read_pickle(df_train_loc)
         df_test = pd.read_pickle(df_test_loc)
         df_user = pd.read_pickle(df_user_loc)
@@ -60,7 +66,7 @@ if __name__ == '__main__':
 
         df_train, df_test = get_dataframe(args.train, args.test)
         update_text(df_train, df_test)
-        update_ngrams(df_train, df_test, feature_number=1000)
+        update_ngrams(df_train, df_test, feature_number=9800)
         update_lexicon(df_train, df_test, args.lexicon_path)
         upadate_linguistic(df_train, df_test)
         df_train, df_test, df_user = update_user(df_train, df_test, args.user_data)
@@ -73,7 +79,7 @@ if __name__ == '__main__':
         df_user.to_pickle(df_user_loc)
 
 
-    x_train, x_test = get_features(df_train, df_test, df_user, model = args.model)
+    x_train, x_test = get_features(df_train, df_test, df_user, model = args.model, lex_list=["NVL"], ling_list=['Links', 'Questions'], user_list=['education', 'party'])
     y_train, y_test = get_lable(df_train, df_test)
     print('total features:', x_train.shape[1])
 
@@ -81,7 +87,7 @@ if __name__ == '__main__':
         x = vstack([x_train,x_test])
         y = y_train + y_test
         print(args.model)
-        clf = LogisticRegression(solver='liblinear')
+        clf = LogisticRegression(solver='liblinear', max_iter=500)
         start = time.time()
         scores = cross_val_score(clf, x, y, cv=5 ,scoring='accuracy')
         end = time.time()
@@ -92,7 +98,7 @@ if __name__ == '__main__':
     else:
 
         start = time.time()
-        clf = LogisticRegression(solver='liblinear')
+        clf = LogisticRegression(solver='liblinear', max_iter=500)
         clf.fit(x_train, y_train)
         end = time.time()
         print("Training Model Cost:", round(end - start),'s.')
